@@ -23,6 +23,6 @@ export class Replacer {
             }
             index = next + 1;
         }
-        return parts.join("");
+        return parts.length ? parts.join("") : str;
     }
 }
