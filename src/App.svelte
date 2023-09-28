@@ -1,92 +1,154 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SimpleMath } from './SimpleMath';
-  import { Replacer } from './Replacer';
-  import { lessonPlan, solution } from './assets/lesson';
-  
+  import { lessonPlan, someAssignment } from './assets/lesson';
+  import type { NodeT } from 'src/Node';
+  import Branch from './lib/tree/Branch.svelte';
+  import type { Assignment, AssignmentRoot } from './lib/AssignmentTypes';
+  import AssignmentComponent from './lib/AssignmentComponent.svelte';
+  import { ContentTools } from './ContentTools';
+
   let expression: string = "";
   
-  type NodeT<T> = { children: NodeT<T>[], data: T };
-  type XData = { title: string, id?: number, content?: string };
+  enum NodeType {
+    Chapter,
+    Part,
+    Subpart,
+    Section
+  }
+
+  const decodeHtml = (html: string) => {
+    var txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+  }
+
+  let assignment: Assignment; // = (<AssignmentRoot>someAssignment).subpart[0].assignments[0];
+  let auth: string;
+
+  // someAssignment.subpart[0].assignments[0].assignment_content.templateData
+  type XData = { title: string, type: NodeType, id?: number, hierarchyID?: number, content?: string };
   type XNode = NodeT<XData>;
   const tableOfContent =  <XNode>{ data: { title: "Table of Content"}, children: lessonPlan.content.chapters.map(chapter => {
-    return <XNode>{ data: { title: chapter.name }, children: chapter.parts.map(part => { 
-      return <XNode>{ data: { title: part.name }, children: part.subParts.map(subpart => { 
-        return <XNode>{ data: { title: subpart.name }, children: subpart.sections.map(section => {
-          return <XNode>{ data: { title: section.name }, children: [] };
+    return <XNode>{ data: { title: chapter.name, type: NodeType.Chapter }, children: chapter.parts.map(part => { 
+      return <XNode>{ data: { title: part.name, type: NodeType.Part }, children: part.subParts.map(subpart => { 
+        return <XNode>{ data: { title: subpart.name, type: NodeType.Subpart, hierarchyID: subpart.hierarchyID }, children: subpart.sections.map(section => {
+          return <XNode>{ data: { title: decodeHtml(section.name), type: NodeType.Section, hierarchyID: section.pivot.hierarchy_id, content: section.lesson.body }, children: [] };
         }) };
       })};
     })};
   })};
 
-  const recToHtml = (node: XNode) => {
-    const xx = (s: string) => {
-      return s; //`<input type="checkbox" name="item1"><label for="item1">${s}</label>`;
+  const findNode = (parent: XNode, check: (node: XNode) => boolean) => {
+    //if (parent.data.title == title) return parent;
+    for (const c of parent.children) {
+      if (check(c)) return c;
     }
-    if (node.data.title.trim() == "") return null;
-    const title = xx(node.data.title);
-    if (node.children?.length) {
-      return `${title}<ul class="item-list">${node.children.map(c => recToHtml(c)).filter(c => c != null).map(c => `<li class="item">${c}</li>`).join("")}</ul>`;
+    for (const c of parent.children) {
+      const found = findNode(c, check);
+      if (found) return found;
     }
-    return title;
+    return null;
   }
 
-  const handleAssignment = (str: string) => {
-    return str.replace(/\[vektorAssignment([^\]]+)\](.+?)\[\/vektorAssignment\]/gm, (str: string, ...args:any[]) => { 
-        const template = document.createElement("template");
-        template.innerHTML =`<div ${args[0]}>${args[1]}</div>`;
-        const el = template.content.querySelector("div");
-        return `<div><i>${el.getAttribute("prefix") || ""}</i><b>${el.getAttribute("comment")}</b>${el.getAttribute("answer")}</div>`;
-      })
-  };
-  const handleFakeTags = (str: string) => {
-    str = str
-      .replace(/\[(\/?)(vanstermarginal)\]/g, "<$1h4>")
-      .replace(/\[(\/?)(vektorExample)\]/g, "<$1ul>")
-      .replace(/\[(\/?)(vektorExampleRow)\]/g, "<$1li>")
-      .replace(/src=\"\/([^\""]+)/g, "src=\"https://files.matematik.nokportalen.se/public/$1");
-    return handleAssignment(str);
-  };
+  let lesson: string = "";
+  const loadSection = (section: string) => {
+    lesson = ContentTools.process(section);
+  }
 
-  const chapter = lessonPlan.content.chapters.find(o => o.name == "Procent");
+  const startNode = findNode(tableOfContent, (node) => node.data.type == NodeType.Section && node.data.title == "Enheter för area & areaomvandlingar");
+  if (startNode != null && startNode.data.content != null) {
+    loadSection(startNode.data.content);
+  } else {
+    console.log("couldn't find startNode");
+    const chapter = lessonPlan.content.chapters.find(o => o.name == "Procent");
+    const part = chapter.parts.find(o => o.name == "Procent och procentenheter");
+    const subpart = part.subParts.find(o => o.name == "Procent och procentenheter");
+    const section = subpart.sections[0];
+    loadSection(section.lesson.body);
+  }
 
-  const part = chapter.parts.find(o => o.name == "Procent och procentenheter");
-  const subpart = part.subParts.find(o => o.name == "Procent och procentenheter");
-  const section = subpart.sections[0];
-  const lessonBody = handleFakeTags(section.lesson.body);
 
-  // const aaa = '[vektorAssignment prefix=\"a)\" answer=\"`7 - 5 = 2`<br><br>Svar: Ökningen är 2 procentenheter.\" comment=\"Procentenheter är skillnaden mellan antalet procent.\" toggle=\"true\"] procentenheter [/vektorAssignment]';
-  // console.log(aaa.replace(/\[(\/?)(vektorAssignment[^\]]*)\]/g, ""));
-
-  const lesson = Replacer.replaceWrapped(lessonBody, 
-    s => SimpleMath.parseMath(s), 
-    s => s);
+  let currentNode: XNode;
+  const onClick = (node: XNode) => {
+    currentNode = node;
+    if (node.data.content) {
+      loadSection(node.data.content);
+    }
+    if ((node.data.type == NodeType.Section || node.data.type == NodeType.Subpart) && node.data.hierarchyID) { // Subpart
+      fetchIt(node.data.hierarchyID);
+    }
+  }
 
   $: renderedExpression = SimpleMath.parseMath(expression);
 
-  //console.log("asdasd", recToHtml(tableOfContent));
   onMount(() => {
-    // insertMathJaxScript();
   });
+
+  const fetchIt = async (hierarchyId: number, assignmentId?: number) => {
+    const courseId = 2982;
+    if (!auth) {
+      console.warn("No auth");
+      return;
+    }
+
+    // https://api.matematik.nokportalen.se/api/v2/assignment/subpart?hierarchyId=3010&assignmentId=24436&courseId=2982
+    let url = `https://localhost:7134/api/v2/assignment/subpart?courseId=${courseId}`;
+    if (assignmentId) { url += `&assignmentId=${assignmentId}`; }
+    if (hierarchyId) { url += `&hierarchyId=${hierarchyId}`; }
+
+    // console.log(url);
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+      mode: "cors",
+      headers: {
+        "Authorization": auth,
+        "Accept": "application/json, text/plain, */*",
+        "X-Destination": "api.matematik.nokportalen.se"
+      }
+    });
+    if (response.ok) {
+      const json = await response.json();
+      const assignments = json["subpart"][0]["assignments"];
+      if (!assignments) {
+        console.log("No assignments");
+        return;
+      }
+      assignment = assignmentId ? assignments.filter(o => o["assignmentID"] == assignmentId) : assignments[0];
+    }
+  }
 </script>
 
 <main>
     <div class="sidenav">
-      {@html recToHtml(tableOfContent)}
+      <Branch node={tableOfContent} getName={n => n.title} expanded={true} onClick={onClick} ></Branch>
+      <!-- {@html recToHtml(tableOfContent)} -->
     </div>
     <div class="pageContent">
-      <input type="text" bind:value={expression} />
-      {@html renderedExpression}
-  
-      <!-- {@html SimpleMath.parseMath("1 xx (a + (5 * 3)) = 2")} -->
-      {@html SimpleMath.parseMath("sum_(i=1)^n i^3=((n(n+1))/2)^2 * 2")}
-      {@html solution[0].text}
-  
+      <input type=text bind:value={auth}/> 
+      {#if assignment}
+      <!-- <AssignmentComponent assignment={assignment}></AssignmentComponent> -->
+      <div class="wrap-collabsible">
+        <input id="collapsible" class="toggle" type="checkbox">
+        <label for="collapsible" class="lbl-toggle">Exercises</label>
+        <div class="collapsible-content">
+          <div class="content-inner">
+            <AssignmentComponent assignment={assignment}></AssignmentComponent>
+          </div>
+        </div>
+      </div>
+      {/if}
       {@html lesson}
       <!-- {renderMath("x = \\frac{t}{3}")}
       {renderMath("x = ((5 * 3)^(2*3))/3")}
        -->
-      </div>
+       <input type="text" bind:value={expression} />
+       {@html renderedExpression}
+   
+       <!-- {@html SimpleMath.parseMath("1 xx (a + (5 * 3)) = 2")} -->
+       {@html SimpleMath.parseMath("sum_(i=1)^n i^3=((n(n+1))/2)^2 * 2")}
+       </div>
 </main>
 
 <style global type="text/scss">
@@ -103,77 +165,22 @@
   padding-top: 6px; /* Place content 60px from the top */
   transition: 0.5s; /* 0.5 second transition effect to slide in the sidenav */
 }
+
 .pageContent {
   transition: margin-left .5s;
   padding: 20px;
 }
-// $list-identation: 1.2em;
-// $list-between-spacing: 0.2em;
-// $list-carret-character: '\f0da';
 
-
-// body > ul {
-//   border-left: 5px solid #DDD;
-// }
-
-
-// ul.tree-list{
-  
-//   font-family: 'Roboto', sans-serif;
-  
-//   li{
-//     list-style: none;
-//     padding: $list-between-spacing 0;
-    
-//     label{
-//       display: inline-block;
-//       margin-left: 0.5em;
-//       padding: $list-between-spacing 0.3em;
-//       border-radius: 0.2em;
-//     }
-    
-//     > ul{
-//       padding-left: $list-identation;
-//       position: relative;
-      
-//       > li{
-//         display: none;
-//       }
-      
-//       &:before{
-//         content: 0; /*$list-carret-character;*/
-//         font-family: 'FontAwesome';
-//         visibility: visible;
-//         font-size: 14px;
-//         position: absolute;
-//         left: 0;
-//         top: -1.45em;
-//         transition: transform 0.3s;
-//       } 
-//     }
-    
-//     input{
-//       width: 100%;
-//       position: absolute;
-//       cursor: pointer;
-//       margin-top: 0.5em;
-//       opacity: 0;
-      
-//       &:hover + label{
-//         background-color:#EEE;
-//       }
-
-//       &:checked ~ ul{
-
-//         &:before{
-//           transform: rotate(90deg);
-//         }
-        
-//         > li{
-//           display:block;
-//         }
-//       }
-//     }
-//   }
-// }
+input[type='checkbox'] { display: none; } 
+.wrap-collabsible { margin: 1.2rem 0; } 
+.lbl-toggle { display: block; font-weight: bold; font-family: monospace; font-size: 1.2rem; text-transform: uppercase; text-align: center; padding: 1rem; color: #DDD; background: #0069ff; 
+cursor: pointer; border-radius: 7px; transition: all 0.25s ease-out; } 
+.lbl-toggle:hover { color: #FFF; } 
+.lbl-toggle::before { content: ' '; display: inline-block; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid currentColor; vertical-align: middle; margin-right: .7rem; transform: translateY(-2px); transition: transform .2s ease-out; } 
+.toggle:checked+.lbl-toggle::before { transform: rotate(90deg) translateX(-3px); } 
+.collapsible-content { max-height: 0px; overflow: hidden; transition: max-height .25s ease-in-out; } 
+.toggle:checked + .lbl-toggle + .collapsible-content { max-height: 350px; } 
+.toggle:checked+.lbl-toggle { border-bottom-right-radius: 0; border-bottom-left-radius: 0; } 
+.collapsible-content .content-inner { background: rgba(0, 105, 255, .1); border-bottom: 1px solid rgba(0, 105, 255, .45); border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; padding: .5rem 1rem; } 
+.collapsible-content p { margin-bottom: 0; }
 </style>
