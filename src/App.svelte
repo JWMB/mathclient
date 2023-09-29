@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SimpleMath } from './SimpleMath';
-  import { lessonPlan, someAssignment } from './assets/lesson';
+  import { assignment2, lessonPlan, someAssignment } from './assets/lesson';
   import type { NodeT } from 'src/Node';
   import Branch from './lib/tree/Branch.svelte';
   import type { Assignment, AssignmentRoot } from './lib/AssignmentTypes';
-  import AssignmentComponent from './lib/AssignmentComponent.svelte';
+  // import AssignmentComponent from './lib/AssignmentComponent.svelte';
   import { ContentTools } from './ContentTools';
+  import Assignments from './lib/Assignments.svelte';
 
   let expression: string = "";
   
@@ -23,7 +24,8 @@
     return txt.value;
   }
 
-  let assignment: Assignment; // = (<AssignmentRoot>someAssignment).subpart[0].assignments[0];
+//  let assignment: Assignment = (<any>assignment2).subpart[0].assignments[0];
+  let assignments: Assignment[] = (<any>assignment2).subpart[0].assignments;
   let auth: string;
 
   // someAssignment.subpart[0].assignments[0].assignment_content.templateData
@@ -110,12 +112,13 @@
     });
     if (response.ok) {
       const json = await response.json();
-      const assignments = json["subpart"][0]["assignments"];
-      if (!assignments) {
+      const foundAssignments = json["subpart"][0]["assignments"];
+      if (!foundAssignments) {
         console.log("No assignments");
         return;
       }
-      assignment = assignmentId ? assignments.filter(o => o["assignmentID"] == assignmentId) : assignments[0];
+      assignments = foundAssignments;
+      // assignment = assignmentId ? assignments.filter(o => o["assignmentID"] == assignmentId) : assignments[0];
     }
   }
 </script>
@@ -126,18 +129,20 @@
       <!-- {@html recToHtml(tableOfContent)} -->
     </div>
     <div class="pageContent">
-      <input type=text bind:value={auth}/> 
-      {#if assignment}
-      <!-- <AssignmentComponent assignment={assignment}></AssignmentComponent> -->
-      <div class="wrap-collabsible">
+      Auth: <input type=text bind:value={auth}/> 
+      {#if assignments?.length}
+      <div style="background-color: bisque;">
+        <Assignments assignments={assignments}></Assignments>
+      </div>
+      <!-- <div class="wrap-collabsible">
         <input id="collapsible" class="toggle" type="checkbox">
         <label for="collapsible" class="lbl-toggle">Exercises</label>
         <div class="collapsible-content">
           <div class="content-inner">
-            <AssignmentComponent assignment={assignment}></AssignmentComponent>
+            <Assignments assignments={assignments}></Assignments>
           </div>
         </div>
-      </div>
+      </div> -->
       {/if}
       {@html lesson}
       <!-- {renderMath("x = \\frac{t}{3}")}
@@ -171,16 +176,16 @@
   padding: 20px;
 }
 
-input[type='checkbox'] { display: none; } 
-.wrap-collabsible { margin: 1.2rem 0; } 
-.lbl-toggle { display: block; font-weight: bold; font-family: monospace; font-size: 1.2rem; text-transform: uppercase; text-align: center; padding: 1rem; color: #DDD; background: #0069ff; 
-cursor: pointer; border-radius: 7px; transition: all 0.25s ease-out; } 
-.lbl-toggle:hover { color: #FFF; } 
-.lbl-toggle::before { content: ' '; display: inline-block; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid currentColor; vertical-align: middle; margin-right: .7rem; transform: translateY(-2px); transition: transform .2s ease-out; } 
-.toggle:checked+.lbl-toggle::before { transform: rotate(90deg) translateX(-3px); } 
-.collapsible-content { max-height: 0px; overflow: hidden; transition: max-height .25s ease-in-out; } 
-.toggle:checked + .lbl-toggle + .collapsible-content { max-height: 350px; } 
-.toggle:checked+.lbl-toggle { border-bottom-right-radius: 0; border-bottom-left-radius: 0; } 
-.collapsible-content .content-inner { background: rgba(0, 105, 255, .1); border-bottom: 1px solid rgba(0, 105, 255, .45); border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; padding: .5rem 1rem; } 
-.collapsible-content p { margin-bottom: 0; }
+// input[type='checkbox'] { display: none; } 
+// .wrap-collabsible { margin: 1.2rem 0; } 
+// .lbl-toggle { display: block; font-weight: bold; font-family: monospace; font-size: 1.2rem; text-transform: uppercase; text-align: center; padding: 1rem; color: #DDD; background: #0069ff; 
+// cursor: pointer; border-radius: 7px; transition: all 0.25s ease-out; } 
+// .lbl-toggle:hover { color: #FFF; } 
+// .lbl-toggle::before { content: ' '; display: inline-block; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid currentColor; vertical-align: middle; margin-right: .7rem; transform: translateY(-2px); transition: transform .2s ease-out; } 
+// .toggle:checked+.lbl-toggle::before { transform: rotate(90deg) translateX(-3px); } 
+// .collapsible-content { max-height: 0px; overflow: hidden; transition: max-height .25s ease-in-out; } 
+// .toggle:checked + .lbl-toggle + .collapsible-content { max-height: 350px; } 
+// .toggle:checked+.lbl-toggle { border-bottom-right-radius: 0; border-bottom-left-radius: 0; } 
+// .collapsible-content .content-inner { background: rgba(0, 105, 255, .1); border-bottom: 1px solid rgba(0, 105, 255, .45); border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; padding: .5rem 1rem; } 
+// .collapsible-content p { margin-bottom: 0; }
 </style>
