@@ -4,17 +4,14 @@ import { SimpleMath } from "./SimpleMath";
 export class ContentTools {
 
     public static process(content: string, preprocess?: (string) => string) {
+        if (preprocess != null) {
+            content = preprocess(content);
+        }
         content = ContentTools.handleFakeTags(content);
         return Replacer.replaceWrapped(content, '`', '`',
             s => SimpleMath.parseMath(s), 
             s => s);
     }
-
-    // const aaa = '[vektorAssignment prefix=\"a)\" answer=\"`7 - 5 = 2`<br><br>Svar: Ökningen är 2 procentenheter.\" comment=\"Procentenheter är skillnaden mellan antalet procent.\" toggle=\"true\"] procentenheter [/vektorAssignment]';
-// console.log(aaa.replace(/\[(\/?)(vektorAssignment[^\]]*)\]/g, ""));
-    // lesson = Replacer.replaceWrapped(lessonBody, 
-    //     s => SimpleMath.parseMath(s), 
-    //     s => s);
 
     public static handleFakeTags(str: string) {
         const createRxForTag = (tag: string) => {
@@ -26,16 +23,10 @@ export class ContentTools {
             return (str: string) => {
                 return str.replace(rx, (str: string, ...args: any[]) => {
                     const template = document.createElement("template");
-                    // console.log(str, args);
                     template.innerHTML = `<div ${args[0]}>${args[1]}</div>`;
                     const el = template.content.querySelector("div");
-                    // const pairs = el.getAttributeNames().map(n => [n, el.getAttribute(n)]).concat([["", ""]);
-                    // pairs.push(["innerHTML", el.innerHTML]);
-                    // const attrs = new Map<string, string>(pairs);
                     const x = { "innerHTML": el.innerHTML };
                     el.getAttributeNames().forEach(n => x[n] = el.getAttribute(n));
-                    // console.log("x", x);
-                    // console.log("render", render(x));
                     return render(x);
                 });
             }
@@ -50,14 +41,14 @@ export class ContentTools {
             .replace(/\[(\/?)(vektorExampleRow)\]/g, "<$1li>")
             // .replace(/\[(\/?)(vektorExampleRow)\]/g, "")
             .replace(/\[(\/?)(vektorReview)\]/g, (str: string, ...args: any[]) => str.indexOf("[/") < 0 ? `<div style="background-color:#fee">` : "</div>")
-            .replace(/\[(\/?)(vektorGreen)\]/g, (str: string, ...args: any[]) => str.indexOf("[/") < 0 ? `<div style="background-color:#efe">` : "</div>")
+            //.replace(/\[(\/?)(definition)\]/g, (str: string, ...args: any[]) => str.indexOf("[/") < 0 ? `<div style="background-color:#efe">` : "</div>")
+            .replace(/\[(\/?)(exempel)\]/g, (str: string, ...args: any[]) => str.indexOf("[/") < 0 ? `<div style="background-color:#efe">` : "</div>")
+            .replace(/\[(\/?)(exempelSvar)\]/g, (str: string, ...args: any[]) => str.indexOf("[/") < 0 ? `<div style="background-color:#efd">` : "</div>")
             //.replace(/\<(\/?)(oembed)/g, "<$1embed")
             .replace(/src=\"\/([^\""]+)/g, "src=\"https://files.matematik.nokportalen.se/public/$1")
             .replace(/\[input ([^\]]+)\]/g, (str: string, ...args: any[]) => { return `<input type='${args[0] == 'unit="Ja/Nej"' ? "checkbox" : "text"}'>`; })
             ;
-          
-        // [input unit="Ja/Nej"]
-        // return handleAssignment(str);
+          // [exempel]Magnus tog ett lån 
         return str;
     }
 }

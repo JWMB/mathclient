@@ -1,145 +1,106 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { assignment2, lessonPlan } from './assets/lesson';
-  import type { NodeT } from 'src/Node';
   import Branch from './lib/tree/Branch.svelte';
   import type { Assignment } from './lib/AssignmentTypes';
-  import { ContentTools } from './ContentTools';
   import Assignments from './lib/Assignments.svelte';
+  import LessonComponent from './lib/LessonComponent.svelte';
+  import { apiStore } from './globalStore';
+  import { NodeType, type XNode } from './ApiFacade';
+  import { getAncestors, getLeaves } from './Node';
   
-  enum NodeType {
-    Chapter,
-    Part,
-    Subpart,
-    Section
-  }
 
-  const decodeHtml = (html: string) => {
-    var txt = document.createElement("textarea");
-    txt.innerHTML = html;
-    return txt.value;
-  }
-
-  let assignments: Assignment[] = (<any>assignment2).subpart[0].assignments;
+  let assignments: Assignment[];
   let auth: string;
 
-  type XData = { title: string, type: NodeType, id?: number, hierarchyID?: number, content?: string };
-  type XNode = NodeT<XData>;
-  const tableOfContent =  <XNode>{ data: { title: "Table of Content"}, children: lessonPlan.content.chapters.map(chapter => {
-    return <XNode>{ data: { title: chapter.name, type: NodeType.Chapter }, children: chapter.parts.map(part => { 
-      return <XNode>{ data: { title: part.name, type: NodeType.Part }, children: part.subParts.map(subpart => { 
-        return <XNode>{ data: { title: subpart.name, type: NodeType.Subpart, hierarchyID: subpart.hierarchyID }, children: subpart.sections.map(section => {
-          return <XNode>{ data: { title: decodeHtml(section.name), type: NodeType.Section, hierarchyID: section.pivot.hierarchy_id, content: section.lesson.body }, children: [] };
-        }) };
-      })};
-    })};
-  })};
-
-  const findNode = (parent: XNode, check: (node: XNode) => boolean) => {
-    //if (parent.data.title == title) return parent;
-    for (const c of parent.children) {
-      if (check(c)) return c;
-    }
-    for (const c of parent.children) {
-      const found = findNode(c, check);
-      if (found) return found;
-    }
-    return null;
-  }
-
   let lesson: string = "";
-  const loadSection = (section: string) => {
-    lesson = ContentTools.process(section);
-  }
 
-  const startNode = findNode(tableOfContent, (node) => node.data.type == NodeType.Section && node.data.title == "Enheter för area & areaomvandlingar");
-  if (startNode != null && startNode.data.content != null) {
-    loadSection(startNode.data.content);
-  } else {
-    console.log("couldn't find startNode");
-    const chapter = lessonPlan.content.chapters.find(o => o.name == "Procent");
-    const part = chapter.parts.find(o => o.name == "Procent och procentenheter");
-    const subpart = part.subParts.find(o => o.name == "Procent och procentenheter");
-    const section = subpart.sections[0];
-    loadSection(section.lesson.body);
-  }
-
-
+  let tableOfContent: XNode;
   let currentNode: XNode;
-  const onClick = (node: XNode) => {
+
+  const getCurrentHierarchyId = () => {
+    if (!currentNode) return null;
+    if ((currentNode.data.type == NodeType.Section || currentNode.data.type == NodeType.Subpart) && currentNode.data.hierarchyID)  // Subpart
+      return currentNode.data.hierarchyID;
+    return null;
+  };
+
+  const selectNode = (node: XNode) => {
     currentNode = node;
     if (node.data.content) {
-      loadSection(node.data.content);
+      lesson = node.data.content;
     }
-    if ((node.data.type == NodeType.Section || node.data.type == NodeType.Subpart) && node.data.hierarchyID) { // Subpart
-      fetchIt(node.data.hierarchyID);
-    }
+    const hId = getCurrentHierarchyId();
+    if (hId) fetchAssignments();
   }
 
-  onMount(() => {
+  const onClick = (node: XNode) => selectNode(node);
+
+  onMount(async () => {
+    await reauth("");
   });
 
-  const fetchIt = async (hierarchyId: number, assignmentId?: number) => {
-    const courseId = 2982;
-    if (!auth) {
-      console.warn("No auth");
-      return;
+  const reauth = async (a: string) => {
+    await apiStore.refresh(a);
+    await fetchCourses();
+    await fetchAssignments();
+  }
+
+  $: reauth(auth);
+
+  let loadedActualCourses = false;
+
+  const fetchCourses = async () => {
+    tableOfContent = null;
+      const courseIds = [2846, 2982, 3126, 16961];
+      let root = await apiStore.getCourses(courseIds);
+      if (!root.children.length) {
+        root = await apiStore.getCourses([courseIds[0]], true);
+      } else {
+        loadedActualCourses = true;
+      }
+      tableOfContent = root;
+
+      const leaf = getLeaves(tableOfContent)[0];
+      if (leaf) {
+        selectNode(leaf);
+      }
+  };
+
+  const fetchAssignments = async (hierarchyId?: number, assignmentId?: number) => {
+    if (!tableOfContent) return;
+    if (!hierarchyId) {
+      hierarchyId = getCurrentHierarchyId() || getLeaves(tableOfContent)[0]?.data.hierarchyID;
     }
-
-    // https://api.matematik.nokportalen.se/api/v2/assignment/subpart?hierarchyId=3010&assignmentId=24436&courseId=2982
-    let url = `https://localhost:7134/api/v2/assignment/subpart?courseId=${courseId}`;
-    if (assignmentId) { url += `&assignmentId=${assignmentId}`; }
-    if (hierarchyId) { url += `&hierarchyId=${hierarchyId}`; }
-
-    // console.log(url);
-    const response = await fetch(url, {
-      method: "GET",
-      credentials: "include",
-      mode: "cors",
-      headers: {
-        "Authorization": auth,
-        "Accept": "application/json, text/plain, */*",
-        "X-Destination": "api.matematik.nokportalen.se"
+    if (hierarchyId) {
+      const courseId = getAncestors(currentNode).find(o => o.data.type == NodeType.Course)?.data.id;
+      if (courseId) {
+        assignments = await apiStore.getAssignments(courseId, hierarchyId, assignmentId);
+      } else {
+        console.log(getAncestors(currentNode));
       }
-    });
-    if (response.ok) {
-      const json = await response.json();
-      const foundAssignments = json["subpart"][0]["assignments"];
-      if (!foundAssignments) {
-        console.log("No assignments");
-        return;
-      }
-      assignments = foundAssignments;
-      // assignment = assignmentId ? assignments.filter(o => o["assignmentID"] == assignmentId) : assignments[0];
     }
   }
 </script>
 
 <main>
     <div class="sidenav">
+      {#if tableOfContent}
       <Branch node={tableOfContent} getName={n => n.title} expanded={true} onClick={onClick} ></Branch>
-      <!-- {@html recToHtml(tableOfContent)} -->
+      {/if}
     </div>
+
     <div class="pageContent">
       Auth: <input type=text bind:value={auth}/> 
+
       {#if assignments?.length}
       <div style="background-color: bisque;">
         <Assignments assignments={assignments}></Assignments>
       </div>
-      <!-- <div class="wrap-collabsible">
-        <input id="collapsible" class="toggle" type="checkbox">
-        <label for="collapsible" class="lbl-toggle">Exercises</label>
-        <div class="collapsible-content">
-          <div class="content-inner">
-            <Assignments assignments={assignments}></Assignments>
-          </div>
-        </div>
-      </div> -->
       {/if}
-      {@html lesson}
-      <!-- {renderMath("x = \\frac{t}{3}")}
-      {renderMath("x = ((5 * 3)^(2*3))/3")}
-       -->
+
+      {#if lesson}
+      <LessonComponent rawLesson={lesson}></LessonComponent>
+      {/if}
        </div>
 </main>
 
@@ -162,17 +123,4 @@
   transition: margin-left .5s;
   padding: 20px;
 }
-
-// input[type='checkbox'] { display: none; } 
-// .wrap-collabsible { margin: 1.2rem 0; } 
-// .lbl-toggle { display: block; font-weight: bold; font-family: monospace; font-size: 1.2rem; text-transform: uppercase; text-align: center; padding: 1rem; color: #DDD; background: #0069ff; 
-// cursor: pointer; border-radius: 7px; transition: all 0.25s ease-out; } 
-// .lbl-toggle:hover { color: #FFF; } 
-// .lbl-toggle::before { content: ' '; display: inline-block; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid currentColor; vertical-align: middle; margin-right: .7rem; transform: translateY(-2px); transition: transform .2s ease-out; } 
-// .toggle:checked+.lbl-toggle::before { transform: rotate(90deg) translateX(-3px); } 
-// .collapsible-content { max-height: 0px; overflow: hidden; transition: max-height .25s ease-in-out; } 
-// .toggle:checked + .lbl-toggle + .collapsible-content { max-height: 350px; } 
-// .toggle:checked+.lbl-toggle { border-bottom-right-radius: 0; border-bottom-left-radius: 0; } 
-// .collapsible-content .content-inner { background: rgba(0, 105, 255, .1); border-bottom: 1px solid rgba(0, 105, 255, .45); border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; padding: .5rem 1rem; } 
-// .collapsible-content p { margin-bottom: 0; }
 </style>

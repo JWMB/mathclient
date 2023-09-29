@@ -6,21 +6,25 @@ export class Replacer {
         let lookFor = openingString;
         const parts: string[] = [];
 
+        const add = (i: number, n: number) => {
+            const part = str.substring(i, n);
+            if (!isInside) {
+                parts.push(replaceInner(part, i, n));
+            } else {
+                parts.push(replaceOuter ? replaceOuter(part, i, n) : part);
+            }
+        };
         while (true) {
             const next = str.indexOf(lookFor, index);
+            isInside = !isInside;
             if (next < 0) {
+                add(index, str.length);
                 break;
             }
-            const part = str.substring(index, next);
-            isInside = !isInside;
+            add(index, next);
             lookFor = isInside ? openingString : closingString;
-            if (!isInside) {
-                parts.push(replaceInner(part, index, next));
-            } else {
-                parts.push(replaceOuter ? replaceOuter(part, index, next) : part);
-            }
             index = next + 1;
         }
-        return parts.length ? parts.join("") : str;
+        return parts.length ? parts.join("") : (replaceOuter ? replaceOuter(str, index) : str);
     }
 }

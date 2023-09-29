@@ -11,14 +11,16 @@
     let alternatives: string[] = [];
 
     const process = (s: string) => {
-      s = s.replace(/\[lucktext[^\]]*\]/g, '<input type="text"/>');
+      s = s
+        .replace(/\[lucktext[^\]]*\]/g, '<input type="text"/>')
+        .replace(/(\<br\s*\/?\>\s*)+$/, "");
       return ContentTools.process(s);
     }
     // const zz = (s: string) => s.replace(/\[lucktext[^\]]*\]/g, '<input type="text"/>');
 
     //assignment.template_data.suggestion
     const parseTasks = (ass: Assignment) => {
-      const oxo: {q?: string, u?: string, v?: string}[] = [];
+      const oxo: {q?: string, u?: string, v?: string, h?: string}[] = [];
       Object.keys(ass.template_data.settings).forEach(k => {
         const index = parseFloat(k.substring(1)) - 1;
         let found:any = oxo[index];
@@ -28,31 +30,57 @@
         }
         found[k.substring(0, 1)] = ass.template_data.settings[k];
       });
-      tasks = oxo.filter(o => o.q).map(o => ({ question: process(o.q), answerType: o.u }))
+      tasks = oxo.filter(o => o.q || o.v).map(o => ({ question: process(o.q || o.v), answerType: o.u }))
       // tasks[0] = { question: '`12/"-4"` =<br><br>', answerType: ''};
       // tasks[0] = { question: '`12/-4`', answerType: ''};
+      const findSubtask = (subtask: string) => {
+        if (!subtask) return null;
+        const found = tasks.find(o => o.question.indexOf(subtask) == 0);
+        if (found) return found;
+        const index = subtask.substring(0,1).toLocaleUpperCase().charCodeAt(0) - 65;
+        if (index >= 0 && index < tasks.length) return tasks[index];
+        return null;
+      };
 
       ass.solutions.forEach(sol => { 
-        const found = tasks.find(o => o.question.indexOf(sol.subtask) == 0);
+        const found = findSubtask(sol.subtask);
         if (found) {
           found.fullAnswer = JSON.parse(sol.solutions).map(o => process(o["text"]));
+          found.fullAnswer = found.fullAnswer.map(o => {
+            if (o.match(/^\s*\<.+\>\s*$/s)) {
+              var el = document.createElement("div");
+              el.innerHTML = o;
+              // const newFrag=document.createDocumentFragment();
+              // newFrag.appendChild(el);
+              const aa = [...el.getElementsByClassName("Wirisformula")][0];
+              if (aa) {
+                const ml = (aa.getAttribute("data-mathml") || "")
+                  .replace(/«/g, "<")
+                  .replace(/»/g, ">")
+                  .replace(/§(#\d+;)/g, "&$1");
+                  //.replace(/§#160;/g, "");
+                return ml;
+              }
+              // console.log(o);
+            }
+            return o;
+          });
           found.answer = JSON.parse(sol.answers).map(o => process(o["text"]));
         }
       });
       ass.hints.forEach(hint => { 
-        const found = tasks.find(o => o.question.indexOf(hint.subtask) == 0);
+        const found = findSubtask(hint.subtask);
         if (found) {
           found.hints = JSON.parse(hint.hints).map(o => process(o["text"])); // "edit"
         }
       });
-      console.log("assignment", assignment, tasks);
-
       // settings: {no_answer_button: 'true'}
 
       alternatives = [];
       const responseType: string = assignment.template_data.responseType; // multiple absolute checkbox show
       if (assignment.template_data.respons?.length) {
         const tmp = assignment.template_data.respons.map(o => typeof o == "string" ? o : o.value);
+        // console.log(tmp);
         alternatives = tmp
           .map(o => process(o))
           .map(o => {
@@ -64,12 +92,10 @@
             }
             return `${o}${add}`;
           });
-        // console.log(alternatives);
-        // console.log(tmp, alternatives);
         // [fraction before="a)" after="=5" num="" den="-3"]
         // '`C` Endast en av täljaren eller nämnaren är ett negativt tal.'
       }
-      // console.log("respons", assignment.template_data.respons, assignment.template_data.responseType) 
+      console.log("assignment", assignment, tasks, alternatives);
     };
 
     $: parseTasks(assignment);
@@ -77,7 +103,7 @@
     // type Answer = { answer: string, expanded: string, hint: string };
 
     let mathExpr: string = "(9 + (5 * 3))^2";
-    const xx = (expression: string) => {
+    const calculateExpression = (expression: string) => {
       if (expression == null || expression.length == 0) return "";
       const mexp = new Mexp();
       try {
@@ -89,7 +115,7 @@
         return "??"; //err;
       }
     };
-    $: renderedExpression = SimpleMath.parseMath(`${mathExpr} = ${xx(mathExpr)}`);
+    $: renderedExpression = SimpleMath.parseMath(`${mathExpr} = ${calculateExpression(mathExpr)}`);
 
 </script>
 
@@ -110,16 +136,16 @@ Expression evaluator: <input type="text" bind:value={mathExpr} />
 <p>
   Question: {@html task.question}
 </p>
-  {#if task.answer}
+{#if task.hints}
+<div style="font-size:small">
+  Hint: {@html task.hints[0]}
+</div>
+{/if}
+{#if task.answer}
   Answer: {@html task.answer[0]}
   {/if}
   {#if task.fullAnswer}
   {@html task.fullAnswer[0]}
-  {/if}
-  {#if task.hints}
-  <div style="font-size:small">
-    Hint: {@html task.hints[0]}
-  </div>
   {/if}
 {/each}
 {#each alternatives as alt}
