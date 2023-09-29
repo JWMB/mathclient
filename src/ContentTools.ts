@@ -5,7 +5,7 @@ export class ContentTools {
 
     public static process(content: string, preprocess?: (string) => string) {
         content = ContentTools.handleFakeTags(content);
-        return Replacer.replaceWrapped(content, 
+        return Replacer.replaceWrapped(content, '`', '`',
             s => SimpleMath.parseMath(s), 
             s => s);
     }

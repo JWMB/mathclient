@@ -1,11 +1,9 @@
 export class Replacer {
 
-    public static replaceWrapped(str: string, replaceInner: (s: string, start?: number, end?: number) => string, replaceOuter?: (s: string, start?: number, end?: number) => string) {
+    public static replaceWrapped(str: string, openingString: string, closingString: string, replaceInner: (s: string, start?: number, end?: number) => string, replaceOuter?: (s: string, start?: number, end?: number) => string) {
         let index = 0;
         let isInside = false;
-        const opener = "`";
-        const closer = "`";
-        let lookFor = opener;
+        let lookFor = openingString;
         const parts: string[] = [];
 
         while (true) {
@@ -15,7 +13,7 @@ export class Replacer {
             }
             const part = str.substring(index, next);
             isInside = !isInside;
-            lookFor = isInside ? opener : closer;
+            lookFor = isInside ? openingString : closingString;
             if (!isInside) {
                 parts.push(replaceInner(part, index, next));
             } else {

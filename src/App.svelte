@@ -1,15 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { SimpleMath } from './SimpleMath';
-  import { assignment2, lessonPlan, someAssignment } from './assets/lesson';
+  import { assignment2, lessonPlan } from './assets/lesson';
   import type { NodeT } from 'src/Node';
   import Branch from './lib/tree/Branch.svelte';
-  import type { Assignment, AssignmentRoot } from './lib/AssignmentTypes';
-  // import AssignmentComponent from './lib/AssignmentComponent.svelte';
+  import type { Assignment } from './lib/AssignmentTypes';
   import { ContentTools } from './ContentTools';
   import Assignments from './lib/Assignments.svelte';
-
-  let expression: string = "";
   
   enum NodeType {
     Chapter,
@@ -24,11 +20,9 @@
     return txt.value;
   }
 
-//  let assignment: Assignment = (<any>assignment2).subpart[0].assignments[0];
   let assignments: Assignment[] = (<any>assignment2).subpart[0].assignments;
   let auth: string;
 
-  // someAssignment.subpart[0].assignments[0].assignment_content.templateData
   type XData = { title: string, type: NodeType, id?: number, hierarchyID?: number, content?: string };
   type XNode = NodeT<XData>;
   const tableOfContent =  <XNode>{ data: { title: "Table of Content"}, children: lessonPlan.content.chapters.map(chapter => {
@@ -81,8 +75,6 @@
       fetchIt(node.data.hierarchyID);
     }
   }
-
-  $: renderedExpression = SimpleMath.parseMath(expression);
 
   onMount(() => {
   });
@@ -148,11 +140,6 @@
       <!-- {renderMath("x = \\frac{t}{3}")}
       {renderMath("x = ((5 * 3)^(2*3))/3")}
        -->
-       <input type="text" bind:value={expression} />
-       {@html renderedExpression}
-   
-       <!-- {@html SimpleMath.parseMath("1 xx (a + (5 * 3)) = 2")} -->
-       {@html SimpleMath.parseMath("sum_(i=1)^n i^3=((n(n+1))/2)^2 * 2")}
        </div>
 </main>
 

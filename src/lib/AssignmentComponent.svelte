@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SimpleMath } from "../SimpleMath";
   import { ContentTools } from "../ContentTools";
   import type { Assignment } from "./AssignmentTypes";
   import Mexp from 'math-expression-evaluator' //'@types/math-expression-evaluator'
@@ -27,7 +28,9 @@
         }
         found[k.substring(0, 1)] = ass.template_data.settings[k];
       });
-      tasks = oxo.filter(o => o.q).map(o => ({ question: o.q, answerType: o.u }))
+      tasks = oxo.filter(o => o.q).map(o => ({ question: process(o.q), answerType: o.u }))
+      // tasks[0] = { question: '`12/"-4"` =<br><br>', answerType: ''};
+      // tasks[0] = { question: '`12/-4`', answerType: ''};
 
       ass.solutions.forEach(sol => { 
         const found = tasks.find(o => o.question.indexOf(sol.subtask) == 0);
@@ -73,11 +76,10 @@
 
     // type Answer = { answer: string, expanded: string, hint: string };
 
-    let mathExpr: string = "";
-    let mathExprEval: any;
+    let mathExpr: string = "(9 + (5 * 3))^2";
     const xx = (expression: string) => {
       if (expression == null || expression.length == 0) return "";
-      const mexp = new Mexp(); //new (<any>window).Mexp;
+      const mexp = new Mexp();
       try {
         const lexed = mexp.lex(expression, []);
         const postfixed = mexp.toPostfix(lexed);  
@@ -87,11 +89,17 @@
         return "??"; //err;
       }
     };
-    $: mathExprEval = xx(mathExpr);
+    $: renderedExpression = SimpleMath.parseMath(`${mathExpr} = ${xx(mathExpr)}`);
+
 </script>
 
 <div>
-Expression evaluator: <input type="text" bind:value={mathExpr} /> {mathExprEval}
+Expression evaluator: <input type="text" bind:value={mathExpr} />
+{@html renderedExpression}
+
+<!-- {@html SimpleMath.parseMath("1 * (a + (5 * 3)) = 2")} -->
+<!-- {@html SimpleMath.parseMath("sum_(i=1)^n i^3=((n(n+1))/2)^2 * 2")} -->
+
 <br/>
 
 {#if assignment.template_data.illustration}
