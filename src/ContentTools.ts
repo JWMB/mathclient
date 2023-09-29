@@ -53,7 +53,7 @@ export class ContentTools {
             .replace(/\[(\/?)(vektorGreen)\]/g, (str: string, ...args: any[]) => str.indexOf("[/") < 0 ? `<div style="background-color:#efe">` : "</div>")
             //.replace(/\<(\/?)(oembed)/g, "<$1embed")
             .replace(/src=\"\/([^\""]+)/g, "src=\"https://files.matematik.nokportalen.se/public/$1")
-            .replace(/\[input ([^\]]+)\]/g, "<input type='text'>")
+            .replace(/\[input ([^\]]+)\]/g, (str: string, ...args: any[]) => { return `<input type='${args[0] == 'unit="Ja/Nej"' ? "checkbox" : "text"}'>`; })
             ;
           
         // [input unit="Ja/Nej"]
