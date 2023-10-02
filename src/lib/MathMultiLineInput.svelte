@@ -50,17 +50,22 @@
             .join("\n => \n");
         const prompt = `
 Analyze the following step-by-step calculations and point out any errors.
-Each step should be a simplification of the previous step.
+Each step should be a simplification of the previous step - make sure the user has simplified correctly and that the expressions are mathematically equal.
 Do NOT provide the full solution.
 Please respond in Swedish.
 ---
 ${content}
 ---
         `.trim();
+        /*When you are writing mathematical formulas, please enclose them inside double quotes (").
+For example, do not simply write 3+x=5 in the response, write it as "3+x=5".
+*/
         console.log("content", prompt);
         evaluation = "...";
-        const result = await client.getChatCompletions("GPT4-8k", [<ChatMessage>{ role: "assistant", content: prompt }]);
-        evaluation = result.choices[0].message.content;
+        const result = await client.getChatCompletions("GPT4-8k",
+            [<ChatMessage>{ role: "assistant", content: prompt }], { temperature: 0 });
+        // const result = { choices: [ { message: { content: "Analys av steg-för-steg-beräkningarna:\n\n((x * 4 - 7) / 3) ^ 3 = 27\n =\u003e \n((x * 4 - 7) / 3) = 9\n\nHär är det ett fel. Det borde vara ((x * 4 - 7) / 3) = 3, eftersom kubroten ur 27 är 3, inte 9."}}]};
+        evaluation = result.choices[0].message.content.replace(/\n/gm, "<br/>");
     };
 
     let editor: Monaco.editor.IStandaloneCodeEditor;
@@ -135,7 +140,7 @@ ${content}
         </div>
     </div>
     <button on:click={evaluate}>Evaluate</button>
-    <div style="background-color:azure">{evaluation}</div>
+    <div style="background-color:azure">{@html evaluation}</div>
 </div>
 
 <style>
