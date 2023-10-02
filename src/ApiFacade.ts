@@ -1,7 +1,7 @@
 import { ApiClient } from "./ApiClient";
 import type { Content } from "./lib/LessonTypes";
 import type { Assignment } from "./lib/AssignmentTypes";
-import { assignment2, lessonPlan } from "./assets/lesson";
+import { assignment2, assignments_141094_16961, course_16961, course_2982 } from "./assets/lesson";
 import { setParents, type NodeT } from './Node';
 
 
@@ -35,7 +35,7 @@ export class ApiWrapper {
         if (root == null) {
             console.warn("no course");
             if (mockFallback) {
-                root = { content: <Content>(<any>lessonPlan.content) };
+                root = { content: <Content>(<any>course_16961.content) };
             }
         }
         return root?.content ? { content: root.content, id: id, root: LessonStuff.parseToTree(root.content) } : null;
@@ -45,7 +45,7 @@ export class ApiWrapper {
         const assignments = await this.client.getAssignments(courseId, hierarchyId, assignmentId);
         if (assignments == null) {
             console.warn("no assignment", hierarchyId, assignmentId);
-            return (<Assignment[]>(<any>assignment2).subpart[0].assignments);
+            return (<Assignment[]>(<any>assignments_141094_16961).subpart[0].assignments); //assignment2
         }
         return assignments;
     }

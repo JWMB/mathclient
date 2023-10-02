@@ -3,6 +3,7 @@
   import { ContentTools } from "../ContentTools";
   import type { Assignment } from "./AssignmentTypes";
   import Mexp from 'math-expression-evaluator' //'@types/math-expression-evaluator'
+  import MultilineInput from "./MathMultiLineInput.svelte";
 
     export let assignment: Assignment;
 
@@ -16,7 +17,6 @@
         .replace(/(\<br\s*\/?\>\s*)+$/, "");
       return ContentTools.process(s);
     }
-    // const zz = (s: string) => s.replace(/\[lucktext[^\]]*\]/g, '<input type="text"/>');
 
     //assignment.template_data.suggestion
     const parseTasks = (ass: Assignment) => {
@@ -31,10 +31,15 @@
         found[k.substring(0, 1)] = ass.template_data.settings[k];
       });
       tasks = oxo.filter(o => o.q || o.v).map(o => ({ question: process(o.q || o.v), answerType: o.u }))
+      if (!tasks.length) { 
+        tasks.push({question: "", answerType: "" });
+       }
       // tasks[0] = { question: '`12/"-4"` =<br><br>', answerType: ''};
       // tasks[0] = { question: '`12/-4`', answerType: ''};
       const findSubtask = (subtask: string) => {
-        if (!subtask) return null;
+        if (!subtask) {
+          return tasks.length == 1 ? tasks[0] : null;
+        }
         const found = tasks.find(o => o.question.indexOf(subtask) == 0);
         if (found) return found;
         const index = subtask.substring(0,1).toLocaleUpperCase().charCodeAt(0) - 65;
@@ -132,25 +137,28 @@ Expression evaluator: <input type="text" bind:value={mathExpr} />
 <img alt="img" style="width:25%" src={assignment.template_data.illustration}/>
 {/if}
 {@html process(assignment.template_data.text)}
-{#each tasks as task}
-<p>
-  Question: {@html task.question}
-</p>
-{#if task.hints}
-<div style="font-size:small">
-  Hint: {@html task.hints[0]}
-</div>
+{#if assignment.template_data.responseType == "absolute" && assignment.template_data.settings == ""}
+<MultilineInput></MultilineInput>
 {/if}
-{#if task.answer}
-  Answer: {@html task.answer[0]}
+{#each tasks as task}
+  <p>
+    {@html task.question}
+  </p>
+  {#if task.hints}
+  <div style="font-size:small">
+    Hint: {@html task.hints[0]}
+  </div>
   {/if}
-  {#if task.fullAnswer}
-  {@html task.fullAnswer[0]}
+  {#if task.answer}
+    Answer: {@html task.answer[0]}
+    {/if}
+    {#if task.fullAnswer}
+    FullAnswer: {@html task.fullAnswer[0]}
   {/if}
 {/each}
 {#each alternatives as alt}
 <div>
-  {@html alt}
+  Alt: {@html alt}
   <br/>
   <br/>
 </div>
