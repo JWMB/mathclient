@@ -1,39 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import LineInput from "./MathSingleLineInput.svelte";
-//   import * as monaco from 'monaco-editor';
-//   import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
   import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api';
   import { renderExpression } from "../MathTools";
   import { OpenAIClient, AzureKeyCredential, type ChatMessage } from "@azure/openai";
-
-//   import type { SvelteComponent, SvelteComponentTyped } from 'svelte';
-//   let components: [typeof SvelteComponent, Record<string, any>][] = [
-//         [LineInput, { content: 'Initial', add:() => console.log("Add") }],
-//         [LineInput, { content: 'blue', add:() => console.log("Add") }],
-//     ];
-//     function add<T extends typeof SvelteComponentTyped<P, any, any>, P>(
-//         component: T,
-//         props: P
-//     ) {
-//         components = [...components, [component, props]];
-//         console.log(components);
-//     }
-
-    // type Row = { value: string};
-    // let rows: Row[] = [{ value: ""}];
-    // const addRow = (index: number, value?: string) => {
-    //     if (value == null)
-    //         value = rows[index - 1].value;
-    //     rows.splice(index, 0, { value: value});
-    //     rows = rows;
-    // }
-    // const removeRow = (index: number) => {
-    //     if (rows.length == 1) return;
-    //     rows.splice(index, 1);
-    //     rows = rows;
-    //     // TODO: how to get ref to other component so we can focus() on it?
-    // }
 
     const client = new OpenAIClient(
         "https://open-ai-france.openai.azure.com/",
@@ -115,22 +84,6 @@ For example, do not simply write 3+x=5 in the response, write it as "3+x=5".
 </script>
 
 <div>
-
-<!-- <button type=button on:click={() => add(LineInput, { content: 'Added' })}>
-    Add
-</button>
-{#each components as [component, props]}
-<svelte:component this={component} {...props} add={console.log("aaa")} >
-    (Slotted content)
-</svelte:component>
-{/each} -->
-
-    <!-- {#each rows as row, i}
-    <div>
-        <LineInput content={row} on:add={() => addRow(i + 1)} on:remove={() => removeRow(i)}></LineInput>
-    </div>
-    {/each} -->
-    <!-- <div id="editor"></div> -->
     <div class="grid-container">
         <div bind:this={editorContainer} />
         <div>

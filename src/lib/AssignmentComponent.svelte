@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { SimpleMath } from "../SimpleMath";
   import { ContentTools } from "../ContentTools";
   import type { Assignment } from "./AssignmentTypes";
-  import Mexp from 'math-expression-evaluator' //'@types/math-expression-evaluator'
   import MultilineInput from "./MathMultiLineInput.svelte";
 
     export let assignment: Assignment;
@@ -34,8 +32,6 @@
       if (!tasks.length) { 
         tasks.push({question: "", answerType: "" });
        }
-      // tasks[0] = { question: '`12/"-4"` =<br><br>', answerType: ''};
-      // tasks[0] = { question: '`12/-4`', answerType: ''};
       const findSubtask = (subtask: string) => {
         if (!subtask) {
           return tasks.length == 1 ? tasks[0] : null;
@@ -55,8 +51,6 @@
             if (o.match(/^\s*\<.+\>\s*$/s)) {
               var el = document.createElement("div");
               el.innerHTML = o;
-              // const newFrag=document.createDocumentFragment();
-              // newFrag.appendChild(el);
               const aa = [...el.getElementsByClassName("Wirisformula")][0];
               if (aa) {
                 const ml = (aa.getAttribute("data-mathml") || "")
@@ -66,7 +60,6 @@
                   //.replace(/§#160;/g, "");
                 return ml;
               }
-              // console.log(o);
             }
             return o;
           });
@@ -85,7 +78,6 @@
       const responseType: string = assignment.template_data.responseType; // multiple absolute checkbox show
       if (assignment.template_data.respons?.length) {
         const tmp = assignment.template_data.respons.map(o => typeof o == "string" ? o : o.value);
-        // console.log(tmp);
         alternatives = tmp
           .map(o => process(o))
           .map(o => {
@@ -98,7 +90,6 @@
             return `${o}${add}`;
           });
         // [fraction before="a)" after="=5" num="" den="-3"]
-        // '`C` Endast en av täljaren eller nämnaren är ett negativt tal.'
       }
       console.log("assignment", assignment, tasks, alternatives);
     };

@@ -2,7 +2,6 @@
   import { createEventDispatcher } from "svelte";
   import { renderExpression } from "../MathTools";
 
-    //export let content: string = "";
     export let content: { value: string} = { value: "" };
 
     const dispatch = createEventDispatcher();
@@ -17,7 +16,7 @@
     }
 
     const init = (el: HTMLElement) => {el.focus();};
-    $: renderedExpression = renderExpression(content.value); // SimpleMath.parseMath(`${content.value}`) + (content.value.indexOf("=") < 0 && calculateExpression(content.value) != "??" ? ` = ${calculateExpression(content.value)}` : ""); // = ${calculateExpression(content.value)}`);
+    $: renderedExpression = renderExpression(content.value);
 
 </script>
 
