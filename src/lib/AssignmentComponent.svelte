@@ -104,35 +104,10 @@
     };
 
     $: parseTasks(assignment);
-
-    // type Answer = { answer: string, expanded: string, hint: string };
-
-    let mathExpr: string = "(9 + (5 * 3))^2";
-    const calculateExpression = (expression: string) => {
-      if (expression == null || expression.length == 0) return "";
-      const mexp = new Mexp();
-      try {
-        const lexed = mexp.lex(expression, []);
-        const postfixed = mexp.toPostfix(lexed);  
-        return mexp.postfixEval(postfixed, {});  
-      } catch (err) {
-        // console.warn("math parse", err);
-        return "??"; //err;
-      }
-    };
-    $: renderedExpression = SimpleMath.parseMath(`${mathExpr} = ${calculateExpression(mathExpr)}`);
-
 </script>
 
 <div>
-Expression evaluator: <input type="text" bind:value={mathExpr} />
-{@html renderedExpression}
-
-<!-- {@html SimpleMath.parseMath("1 * (a + (5 * 3)) = 2")} -->
-<!-- {@html SimpleMath.parseMath("sum_(i=1)^n i^3=((n(n+1))/2)^2 * 2")} -->
-
 <br/>
-
 {#if assignment.template_data.illustration}
 <img alt="img" style="width:25%" src={assignment.template_data.illustration}/>
 {/if}
